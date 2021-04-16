@@ -4,6 +4,7 @@ from aiohttp import web
 import asyncio
 
 from views import routes
+from models import BaseLogic
 
 
 class Main:
@@ -25,3 +26,8 @@ class Main:
             cors.add(route)
 
         web.run_app(app)
+
+    async def task_is_calc(self):
+        while True:
+            await BaseLogic().check()  # TODO here your logic, and this object from models.py
+            await asyncio.sleep(86400)

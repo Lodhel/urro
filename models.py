@@ -33,6 +33,11 @@ class DebtorCard(db.Model):
     validation = db.Column()
 
 
+class BaseLogic:
+    async def check(self):  # TODO write logic
+        pass
+
+
 async def connect():
     await db.set_bind('postgresql://{}:{}@{}/{}'.format(
         DATABASE["USERNAME"], DATABASE["PASSWORD"], DATABASE["HOST"], DATABASE["NAME"]
