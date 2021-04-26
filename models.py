@@ -1,4 +1,7 @@
 import asyncio
+import json
+
+import requests
 from gino import Gino
 
 from local_settings import DATABASE
@@ -31,11 +34,38 @@ class DebtorCard(db.Model):
     state_fees_calc = db.Column()
     debt_data = db.Column()
     validation = db.Column()
+    
+    
+class Debtor(db.Model):
+    __tablename__ = 'debtor'
+    
+    id = db.Column(db.Integer(), primary_key=True)
+    debtor = db.Column()
+    status_order = db.Column()
+    query_num = db.Column()
 
 
-class BaseLogic:
+class BaseLogicMixin:
+    async def check_order(self, debtor):
+        request = requests.post("api/check_order_status/", json={
+
+            "egrn_key": "string",
+            "key": "string",
+            "parse_egrn_status": True,
+            "query_num": debtor.query_num
+
+        })
+        result = json.loads(request.content)
+        debtor.update(status_order=result["status"]).apply()
+
+
+class BaseLogic(BaseLogicMixin):
     async def check(self):  # TODO write logic
         pass
+
+    async def check_reestr(self):
+        all_debtor = await Debtor.query.gino.all()
+        debtors = [self.check_order(debtor) for debtor in all_debtor]
 
 
 async def connect():

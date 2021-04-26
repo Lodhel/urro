@@ -31,3 +31,8 @@ class Main:
         while True:
             await BaseLogic().check()  # TODO here your logic, and this object from models.py
             await asyncio.sleep(86400)
+
+    async def task_reestr(self):
+        while True:
+            await BaseLogic().check_reestr()
+            await asyncio.sleep(7200)
