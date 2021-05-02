@@ -51,7 +51,7 @@ class Debtor(db.Model):
     query_num = db.Column()
 
 
-class BaseLogicMixin:
+class BaseLogicDebtorMixin:
     async def check_order(self, debtor, key=KEY_ROSREESTR):
         request = requests.post("api/check_order_status/", json={
 
@@ -65,7 +65,6 @@ class BaseLogicMixin:
         debtor.update(status_order=result["status"]).apply()
 
 
-class BaseLogic(BaseLogicMixin):
     def calculate_155(self, debt: float, days: int, percent: float, share: float):
         """
             пени, взыскиваемые с должника по ст. 155 ЖК РФ
@@ -87,12 +86,16 @@ class BaseLogic(BaseLogicMixin):
 
         return (data_end - data_start).days
 
+
+class BaseLogicDebtor(BaseLogicDebtorMixin):
     async def check_reestr(self):
         all_debtor = await Debtor.query.gino.all()
         debtors = [self.check_order(debtor) for debtor in all_debtor]
 
-    async def check_percent(self):
-        return 1/300  # TODO parser for CentralBank
+    async def check_percent(self,  days):
+        if days > 90:
+            return 1/130
+        return 1/300
 
     async def get_share(self, summa):
         return (summa/100)*5  # TODO change 5 to incorrect value
@@ -102,13 +105,13 @@ class BaseLogic(BaseLogicMixin):
         if not _days and _days < 0:
             return False
 
-        _percent = await self.check_percent()
+        _percent = await self.check_percent(_days)
         _share = await self.get_share(debtor_card.debt_value)
 
-        _debt_calculation = self.calculate_155(
+        _peni_calc_155 = self.calculate_155(
             debtor_card.debt_value, _days, _percent, _share
         )
-        debtor_card.update(debt_calculation=_debt_calculation).apply()
+        debtor_card.update(peni_calc_155=_peni_calc_155).apply()
 
     async def check_peny(self):
         all_debtor = await DebtorCard.query.gino.all()

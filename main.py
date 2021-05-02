@@ -4,7 +4,7 @@ from aiohttp import web
 import asyncio
 
 from views import routes
-from models import BaseLogic
+from models import BaseLogicDebtor
 
 
 class Main:
@@ -29,10 +29,10 @@ class Main:
 
     async def task_is_calc(self):
         while True:
-            await BaseLogic().check()  # TODO here your logic, and this object from models.py
+            await BaseLogicDebtor().check_peny()  # TODO here your logic, and this object from models.py
             await asyncio.sleep(86400)
 
     async def task_reestr(self):
         while True:
-            await BaseLogic().check_reestr()
+            await BaseLogicDebtor().check_reestr()
             await asyncio.sleep(7200)
