@@ -3,6 +3,7 @@ import datetime
 import json
 
 import requests
+from bs4 import BeautifulSoup
 from gino import Gino
 
 from local_settings import DATABASE
@@ -64,7 +65,6 @@ class BaseLogicDebtorMixin:
         result = json.loads(request.content)
         debtor.update(status_order=result["status"]).apply()
 
-
     def calculate_155(self, debt: float, days: int, percent: float, share: float):
         """
             пени, взыскиваемые с должника по ст. 155 ЖК РФ
@@ -87,7 +87,47 @@ class BaseLogicDebtorMixin:
         return (data_end - data_start).days
 
 
-class BaseLogicDebtor(BaseLogicDebtorMixin):
+class DebtorParser:
+    def cbr_parser(self, data: str):
+        """
+        Функция парсинга сайта cbr.ru
+
+        :param data: дата формата 2000-12-31
+        :return: `list` - [дата, проецнт на это дату]
+        """
+
+        # Получаем год, месяц и день из переданой даты
+        year, month, day = data.split('-')
+
+        # Подгоняем параметры под url
+        site = 'https://cbr.ru/hd_base/keyrate/?UniDbQuery.Posted=True'
+        params = f'&UniDbQuery.From={day}.{str(int(month) - 1).zfill(2)}.{year}&UniDbQuery.To={day}.{month}.{year}'
+
+        # Формируем url для прасинга
+        parsing_url = site + params
+
+        # Кидаем get запрос
+        r = requests.get(parsing_url)
+
+        # Обрабатывем ответ в lxml формате
+        bs = BeautifulSoup(r.text, 'lxml')
+
+        # Получаем максимально подходящую дату и процент для нее
+        data, percent = bs.table.find_all('td')[:2]
+
+        # Получаем год, месяц и день из полученной даты
+        day, month, year = data.text.split('.')
+
+        # Подготавливаем дату под корректный вид
+        data = f'{year}-{month}-{day}'
+
+        # Переводим процент в float
+        percent = float(percent.text.replace(',', '.'))
+
+        return percent
+
+
+class BaseLogicDebtor(DebtorParser, BaseLogicDebtorMixin):
     async def check_reestr(self):
         all_debtor = await Debtor.query.gino.all()
         debtors = [self.check_order(debtor) for debtor in all_debtor]
@@ -97,8 +137,8 @@ class BaseLogicDebtor(BaseLogicDebtorMixin):
             return 1/130
         return 1/300
 
-    async def get_share(self, summa):
-        return (summa/100)*5  # TODO change 5 to incorrect value
+    async def get_share(self, summa, date):
+        return (summa/100)*self.cbr_parser(date)
 
     async def peny_validate(self, debtor_card):
         _days = self.day_calculate(debtor_card.start_time, debtor_card.end_time)
@@ -106,7 +146,7 @@ class BaseLogicDebtor(BaseLogicDebtorMixin):
             return False
 
         _percent = await self.check_percent(_days)
-        _share = await self.get_share(debtor_card.debt_value)
+        _share = await self.get_share(debtor_card.debt_value, debtor_card.end_time)
 
         _peni_calc_155 = self.calculate_155(
             debtor_card.debt_value, _days, _percent, _share

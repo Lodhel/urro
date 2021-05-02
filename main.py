@@ -29,7 +29,7 @@ class Main:
 
     async def task_is_calc(self):
         while True:
-            await BaseLogicDebtor().check_peny()  # TODO here your logic, and this object from models.py
+            await BaseLogicDebtor().check_peny()
             await asyncio.sleep(86400)
 
     async def task_reestr(self):
